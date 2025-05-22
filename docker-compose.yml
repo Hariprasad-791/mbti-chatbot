@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - mbti-network
+
+  mlmodel:
+    image: mbti-mlmodel
+    ports:
+      - "8000:8000"
+    networks:
+      - mbti-network
+
+  server:
+    image: mbti-server
+    ports:
+      - "5000:5000"
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/mbti
+      - PORT=5000
+    depends_on:
+      - mongodb
+      - mlmodel
+    networks:
+      - mbti-network
+
+networks:
+  mbti-network:
+    driver: bridge
+
+volumes:
+  mongodb_data: 
