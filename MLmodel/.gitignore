@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+mbert_mbti_model/
+__pycache__/
+*.pyc
+
+# Environment variables
+.env
+
+# Logs
+*.log
+
+# System files
+.DS_Store
+
+# Docker volumes
+mongodb_data/
+
+# IDE files
+.vscode/
+.idea/
+
+# Build files
+dist/
+build/
+*.pkl
+*.npy 
