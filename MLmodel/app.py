@@ -21,9 +21,35 @@ CORS(app)
 model = None
 tokenizer = None
 
-# 🔐 Set your Gemini API key
-genai.configure(api_key="AIzaSyAW6jtqfPOdYZw47DKGldo0jCTdE3V7RN8")
-gemini_model = genai.GenerativeModel("gemini-2.0-flash")
+# Configure Google Generative AI
+try:
+    import google.generativeai as genai
+    
+    GOOGLE_API_KEY = "AIzaSyAW6jtqfPOdYZw47DKGldo0jCTdE3V7RN8"
+    genai.configure(api_key=GOOGLE_API_KEY)
+    
+    try:
+        # Initialize Gemini model
+        model = genai.GenerativeModel('gemini-pro')
+        # Test the model
+        response = model.generate_content("Test message")
+        if response:
+            print("✅ Gemini model initialized successfully!")
+        else:
+            raise Exception("Model response validation failed")
+            
+    except Exception as e:
+        print(f"❌ Error initializing Gemini model: {str(e)}")
+        print("💡 Make sure you:")
+        print("   1. Have a valid API key")
+        print("   2. Have internet connectivity")
+        print("   3. Are using the correct model name (gemini-pro)")
+        exit(1)
+
+except ImportError:
+    print("❌ Error: Could not import google.generativeai")
+    print("💡 Try running: pip install --upgrade google-generativeai")
+    exit(1)
 
 # Model configuration
 MAX_SEQ_LEN = 128
@@ -232,7 +258,7 @@ Personality-specific guidelines:
 - For Perceivers (P): Be flexible, keep options open
 """
 
-        chat = gemini_model.start_chat()
+        chat = model.start_chat()
         response = chat.send_message(prompt)
 
         return jsonify({ 
@@ -275,7 +301,7 @@ def summarize():
 
         prompt += "\nProvide a personality summary (2-3 sentences):"
 
-        chat = gemini_model.start_chat()
+        chat = model.start_chat()
         response = chat.send_message(prompt)
         summary_text = response.text.strip()
 
