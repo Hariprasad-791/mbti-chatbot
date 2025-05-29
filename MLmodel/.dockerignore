@@ -4,4 +4,3 @@ __pycache__/
 .git/
 .gitignore
 *.log
-mbert_mbti_model
