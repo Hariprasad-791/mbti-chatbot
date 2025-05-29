@@ -12,6 +12,31 @@ exports.getHistory = async (req, res) => {
   }
 };
 
+exports.updateMbti = async (req, res) => {
+  try {
+    const { mbti } = req.body;
+    const userId = req.userId;
+    
+    if (!mbti) {
+      return res.status(400).json({ error: 'MBTI type is required' });
+    }
+    
+    // Update user's MBTI
+    await User.findByIdAndUpdate(userId, {
+      $set: {
+        'psychology.mbti': mbti,
+        'psychology.lastUpdated': new Date()
+      }
+    });
+    
+    res.json({ message: 'MBTI updated successfully', mbti });
+  } catch (err) {
+    console.error('MBTI update error:', err.message);
+    res.status(500).json({ error: 'Failed to update MBTI' });
+  }
+};
+
+
 exports.analyze = async (req, res) => {
   try {
     const { message, role = 'user' } = req.body; // role optional, default 'user'
@@ -48,55 +73,3 @@ exports.analyze = async (req, res) => {
     });
   }
 };
-
-
-exports.summarizeAnswers = async (req, res) => {
-  const { questions, answers } = req.body;
-  const userId = req.userId;
-
-  if (!questions || !answers || questions.length !== answers.length) {
-    return res.status(400).json({ error: "Invalid input: questions and answers must match" });
-  }
-
-  try {
-    // 🌐 Call Gemini-based Flask API
-    const geminiResponse = await axios.post('http://127.0.0.1:5001/summarize', {
-      questions,
-      answers
-    });
-
-    const summary = geminiResponse.data.summary;
-
-    // 📩 Send to local MBTI predictor
-    const mlResponse = await axios.post('http://127.0.0.1:5001/predict', {
-      text: summary
-    });
-
-    const mbti = mlResponse.data.mbti;
-
-    // 💾 Save to MongoDB
-    await User.findByIdAndUpdate(userId, {
-      $set: {
-        'psychology.mbti': mbti,
-        'psychology.lastUpdated': new Date()
-      },
-      $push: {
-        chatInteractions: {
-          message: summary,
-          mbti,
-          timestamp: new Date()
-        }
-      }
-    });
-
-    res.json({ summary, mbti });
-
-  } catch (err) {
-    console.error("❌ Gemini or MBTI error:", err.message);
-    res.status(500).json({ error: "Failed to summarize or predict MBTI." });
-  }
-};
-
-
-
-

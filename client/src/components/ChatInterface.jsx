@@ -88,19 +88,117 @@ const mbtiResponses = {
   ]
 };
 
-
 const initialQuestions = [
-  { q: "How do you prefer to spend your free time?", options: ["Reading", "Partying", "Hobbies", "Socializing"] },
-  { q: "When solving problems, you rely more on:", options: ["Logic", "Feelings", "Experience", "Advice"] },
-  { q: "You feel energized by:", options: ["Alone time", "Group activities", "New challenges", "Quiet reflection"] },
-  { q: "In a team, you usually:", options: ["Lead", "Support", "Analyze", "Encourage"] },
-  { q: "You make decisions based on:", options: ["Data", "Values", "Gut feeling", "Consensus"] },
-  { q: "Routine tasks make you feel:", options: ["Comfortable", "Bored", "Efficient", "Trapped"] },
-  { q: "When learning, you prefer:", options: ["Hands-on", "Theory", "Discussion", "Videos"] },
-  { q: "In social settings, you:", options: ["Observe", "Engage", "Withdraw", "Adapt"] },
-  { q: "Your desk is usually:", options: ["Organized", "Messy", "Balanced", "Flexible"] },
-  { q: "You value most:", options: ["Truth", "Harmony", "Freedom", "Results"] },
+  {
+    q: "How do you prefer to spend your free time?",
+    options: [
+      "Attending social events or meeting new people",  // E
+      "Spending time alone or with a close friend",     // I
+      "Exploring nature or observing your surroundings",// S
+      "Reflecting on abstract ideas or journaling"      // N
+    ]
+  },
+  {
+    q: "In conversations, you typically:",
+    options: [
+      "Lead the discussion and share stories",         // E
+      "Listen more than speak",                          // I
+      "Focus on practical issues being discussed",      // S
+      "Look for underlying meaning or motivation"       // N
+    ]
+  },
+  {
+    q: "When solving a problem, you prefer to:",
+    options: [
+      "Gather facts and use tried-and-true methods",    // S
+      "Look at the bigger picture and imagine new solutions", // N
+      "Make quick, practical decisions",                 // S, J
+      "Brainstorm freely before narrowing down options" // N, P
+    ]
+  },
+  {
+    q: "Your memory is strongest for:",
+    options: [
+      "Real events and detailed past experiences",       // S
+      "Impressions, patterns, or intuitive 'gut feelings'", // N
+      "Lists, timelines, and schedules",                  // J
+      "Possibilities and 'what-if' scenarios"             // P, N
+    ]
+  },
+  {
+    q: "When making decisions, you rely more on:",
+    options: [
+      "Objective logic and fairness",                    // T
+      "Empathy and how others will feel",                 // F
+      "Rules and structure",                              // J
+      "Personal values and beliefs"                       // F
+    ]
+  },
+  {
+    q: "In a team project, your role is usually:",
+    options: [
+      "Coordinator making sure everything is done on time", // J
+      "Mediator ensuring everyone feels heard",           // F
+      "Critic who evaluates ideas objectively",           // T
+      "Idea-generator suggesting multiple directions"     // P
+    ]
+  },
+  {
+    q: "How do you prefer to plan your day?",
+    options: [
+      "With a detailed to-do list",                        // J
+      "By adapting as the day progresses",                 // P
+      "By blocking time for tasks and breaks",             // J
+      "I rarely plan; I go with the flow"                   // P
+    ]
+  },
+  {
+    q: "Your desk or workspace is usually:",
+    options: [
+      "Neat and organized",                                // J
+      "Full of notes, sketches, and spontaneous ideas",    // P
+      "Clean but with some flexibility",                    // I, J
+      "Chaotic but creative"                                // P, N
+    ]
+  },
+  {
+    q: "How do you respond to last-minute changes?",
+    options: [
+      "They throw me off; I prefer stability",             // J
+      "I adapt quickly and enjoy the excitement",           // P
+      "I plan backups for everything",                       // J
+      "I get frustrated but try to adjust"                  // F, J
+    ]
+  },
+  {
+    q: "Which statement fits you best?",
+    options: [
+      "I enjoy theoretical and complex discussions",       // N, T
+      "I prefer actionable, real-world topics",             // S, J
+      "I lead with vision and energy",                      // E, N
+      "I quietly observe and analyze situations"           // I, T
+    ]
+  },
+  {
+    q: "Your productivity increases when:",
+    options: [
+      "You have a strict deadline and clear goals",        // J
+      "You're allowed freedom and creative space",          // P
+      "You can collaborate and bounce ideas",               // E
+      "You work independently without interference"         // I
+    ]
+  },
+  {
+    q: "Others often describe you as:",
+    options: [
+      "Outgoing and energetic",                             // E
+      "Thoughtful and reserved",                            // I
+      "Compassionate and kind",                             // F
+      "Efficient and organized"                             // J
+    ]
+  }
 ];
+
 
 const ChatInterface = ({ user }) => {
   const [message, setMessage] = useState('');
@@ -144,30 +242,62 @@ useEffect(() => {
 }, []);
 
 
-  const summarizeAndPredict = async (questions, answers) => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.post("http://localhost:5000/api/chat/summarize", {
-        questions,
-        answers
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+const combineAnswersForDatasetStyle = (questions, selectedAnswers) => {
+  const responses = selectedAnswers.map((answerIndex, questionIndex) => {
+    return questions[questionIndex].options[answerIndex].toLowerCase();
+  });
 
-      const { summary, mbti } = response.data;
+  return `
+    People often describe me as someone who ${responses[0]}, and I tend to ${responses[1]} in conversations. 
+    When problem-solving, I usually ${responses[2]} and recall ${responses[3]} most easily. 
+    I make decisions by ${responses[4]} and take on the role of someone who ${responses[5]} in group work. 
+    My day is usually planned by ${responses[6]}, and my work environment is ${responses[7]}. 
+    When plans change, I usually ${responses[8]}, and I ${responses[9]} in discussions. 
+    I’m most productive when I ${responses[10]}, and my friends say I’m ${responses[11]}. 
+  `.replace(/\s+/g, ' ').trim();
+};
 
-      setUserMbti(mbti);
-      setChatHistory(prev => [
-        ...prev,
-        { isUser: false, message: `🧠 Summary: ${summary}`, timestamp: new Date().toISOString() },
-        { isUser: false, message: `💡 MBTI Type Detected: ${mbti}`, timestamp: new Date().toISOString() }
-      ]);
-    } catch (err) {
-      console.error("Summarization or MBTI failed:", err);
-    }
-  };
+
+
+const summarizeAndPredict = async (questions, answers) => {
+  try {
+    const token = localStorage.getItem("token");
+    
+    // Combine answers into dataset-style text
+    const combinedText = combineAnswersForDatasetStyle(questions, answers);
+    
+    // Send directly to mBERT for prediction
+    const mbtiResponse = await axios.post('http://localhost:5001/predict', {
+      text: combinedText
+    });
+    
+    const mbti = mbtiResponse.data.mbti;
+    const confidence = mbtiResponse.data.confidence;
+    
+    // Update user's MBTI in database
+    await axios.post("http://localhost:5000/api/chat/update-mbti", {
+      mbti: mbti
+    }, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    
+    setUserMbti(mbti);
+    setChatHistory(prev => [
+      ...prev,
+      { isUser: false, message: `🔮 MBTI Type Detected: ${mbti} (Confidence: ${(confidence * 100).toFixed(1)}%)`, timestamp: new Date().toISOString() },
+      { isUser: false, message: `📝 Analysis: ${combinedText}`, timestamp: new Date().toISOString() }
+    ]);
+  } catch (err) {
+    console.error("MBTI prediction failed:", err);
+    setChatHistory(prev => [
+      ...prev,
+      { isUser: false, message: "⚠️ Failed to analyze personality. Please try again.", timestamp: new Date().toISOString() }
+    ]);
+  }
+};
+
 
 const handleSend = async () => {
   if (!message.trim()) return;
@@ -278,30 +408,29 @@ const handleSend = async () => {
     }
   };
 
-  // MCQ Phase
-  if (!isMcqCompleted) {
-    return (
-      <div className="chat-container">
-        <h3>{initialQuestions[mcqIndex].q}</h3>
-        {initialQuestions[mcqIndex].options.map((opt, idx) => (
-          <button key={idx} onClick={async () => {
-            const updatedAnswers = [...mcqAnswers, opt];
-            setMcqAnswers(updatedAnswers);
+// MCQ Phase
+if (!isMcqCompleted) {
+  return (
+    <div className="chat-container">
+      <h3>{initialQuestions[mcqIndex].q}</h3>
+      {initialQuestions[mcqIndex].options.map((opt, idx) => (
+        <button key={idx} onClick={async () => {
+          const updatedAnswers = [...mcqAnswers, idx]; // Store index instead of text
+          setMcqAnswers(updatedAnswers);
 
-            if (mcqIndex === 9) {
-              setIsMcqCompleted(true);
-              await summarizeAndPredict(initialQuestions.map(q => q.q), updatedAnswers);
-            } else {
-              setMcqIndex(prev => prev + 1);
-            }
-          }}>
-            {opt}
-          </button>
-        ))}
-      </div>
-    );
-  }
-
+          if (mcqIndex === 9) {
+            setIsMcqCompleted(true);
+            await summarizeAndPredict(initialQuestions, updatedAnswers); // Pass questions array and answer indices
+          } else {
+            setMcqIndex(prev => prev + 1);
+          }
+        }}>
+          {opt}
+        </button>
+      ))}
+    </div>
+  );
+}
   // Normal Chat UI
   return (
     <div className="chat-container">
