@@ -247,7 +247,7 @@ const combineAnswersForDatasetStyle = (questions, selectedAnswers) => {
     return questions[questionIndex].options[answerIndex].toLowerCase();
   });
 
-  return `
+  return ` 
     People often describe me as someone who ${responses[0]}, and I tend to ${responses[1]} in conversations. 
     When problem-solving, I usually ${responses[2]} and recall ${responses[3]} most easily. 
     I make decisions by ${responses[4]} and take on the role of someone who ${responses[5]} in group work. 
@@ -256,8 +256,6 @@ const combineAnswersForDatasetStyle = (questions, selectedAnswers) => {
     I’m most productive when I ${responses[10]}, and my friends say I’m ${responses[11]}. 
   `.replace(/\s+/g, ' ').trim();
 };
-
-
 
 const summarizeAndPredict = async (questions, answers) => {
   try {
