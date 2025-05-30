@@ -29,6 +29,151 @@ gemini_model = genai.GenerativeModel("gemini-2.0-flash")
 MAX_SEQ_LEN = 128
 MBERT_MODEL_NAME = "bert-base-multilingual-cased"
 
+# Add this new route to your existing MLmodel/app.py file
+
+# Personality Adaptation Engine (Core Innovation)
+class PersonalityAdaptationEngine:
+    def __init__(self):
+        self.adaptation_strategies = {
+            'stress': {
+                'INTJ': 'structured_support',
+                'ENFP': 'emotional_first',
+                'ISTJ': 'step_by_step',
+                'ESFP': 'positive_energy',
+                'INTP': 'logical_analysis',
+                'ENTJ': 'action_plan',
+                'INFJ': 'deep_understanding',
+                'ENTP': 'creative_alternatives',
+                'ISFJ': 'gentle_reassurance',
+                'ESTJ': 'systematic_approach',
+                'ISFP': 'value_respect',
+                'ESTP': 'immediate_action',
+                'INFP': 'emotion_validation',
+                'ENFJ': 'growth_focus',
+                'ISTP': 'practical_solutions',
+                'ESFJ': 'social_support'
+            }
+        }
+    
+    def adapt_personality(self, base_mbti, context):
+        """Core innovation: Dynamic personality adaptation based on context"""
+        if context == 'stress':
+            return self._adapt_for_stress(base_mbti)
+        elif context == 'social_anxiety':
+            return self._adapt_for_social_anxiety(base_mbti)
+        elif context == 'curiosity':
+            return self._adapt_for_curiosity(base_mbti)
+        else:
+            return {'style': 'normal', 'approach': base_mbti}
+    
+    def _adapt_for_stress(self, base_mbti):
+        """Temporarily shift to supportive traits regardless of base type"""
+        return {
+            'style': 'supportive_structured',
+            'approach': 'calm_then_solve',
+            'tone': 'gentle_understanding',
+            'explanation': f'Adapting from {base_mbti} to provide stress-specific support'
+        }
+    
+    def _adapt_for_social_anxiety(self, base_mbti):
+        """Adapt for social anxiety situations"""
+        return {
+            'style': 'gentle_encouraging',
+            'approach': 'validate_then_guide',
+            'tone': 'understanding_supportive',
+            'explanation': f'Adapting from {base_mbti} to address social anxiety'
+        }
+    
+    def _adapt_for_curiosity(self, base_mbti):
+        """Adapt for curiosity and learning"""
+        return {
+            'style': 'exploratory_detailed',
+            'approach': 'expand_and_explore',
+            'tone': 'enthusiastic_informative',
+            'explanation': f'Adapting from {base_mbti} to match your curiosity'
+        }
+
+# Add this new route to your existing app.py
+@app.route('/adaptive_generate', methods=['POST'])
+def adaptive_generate():
+    """Generate adaptive response with personality shifting"""
+    from nltk.sentiment.vader import SentimentIntensityAnalyzer
+    
+    try:
+        data = request.get_json()
+        query = data.get("user_query", "")
+        base_mbti = data.get("user_personality", "")
+        chat_history = data.get("chat_history", [])
+        detected_context = data.get("detected_context", "normal")
+        
+        # Initialize adaptation engine
+        adaptation_engine = PersonalityAdaptationEngine()
+        
+        # Adapt personality based on context
+        adapted_traits = adaptation_engine.adapt_personality(base_mbti, detected_context)
+        
+        # Create chat history string
+        chat_string = "\n".join([f"User: {entry['user']}\nBot: {entry['bot']}" for entry in chat_history])
+        
+        # Analyze sentiment
+        sid = SentimentIntensityAnalyzer()
+        sentiment = sid.polarity_scores(query)
+        emotion = (
+            "positive" if sentiment['compound'] > 0.05 else
+            "negative" if sentiment['compound'] < -0.05 else
+            "neutral"
+        )
+        
+        # Create adaptive prompt
+        prompt = f"""
+You are an AI companion with adaptive personality responding to a university student.
+
+PERSONALITY ADAPTATION:
+- Base Personality: {base_mbti}
+- Detected Context: {detected_context}
+- Adapted Style: {adapted_traits.get('style', 'normal')}
+- Adapted Approach: {adapted_traits.get('approach', 'standard')}
+- Adapted Tone: {adapted_traits.get('tone', 'balanced')}
+
+STUDENT QUERY: {query}
+EMOTIONAL STATE: {emotion}
+
+CONVERSATION HISTORY:
+{chat_string}
+
+ADAPTATION RULES:
+1. If context is "stress": Provide calming support first, then structured solutions
+2. If context is "social_anxiety": Validate their feelings, then gentle encouragement
+3. If context is "curiosity": Match their enthusiasm and provide detailed exploration
+4. If context is "normal": Respond with base {base_mbti} personality
+
+RESPONSE GUIDELINES:
+- Adapt your communication style while maintaining your core helpfulness
+- For stress: "I can sense you're feeling overwhelmed. Let's break this down together..."
+- For social anxiety: "Social situations can feel challenging, and that's completely normal..."
+- For curiosity: "I love your curiosity! Let's dive deep into this topic..."
+
+Generate a response that demonstrates this personality adaptation.
+"""
+        
+        # Generate response using Gemini
+        chat = gemini_model.start_chat()
+        response = chat.send_message(prompt)
+        
+        return jsonify({
+            "response": response.text.strip(),
+            "adaptation_info": adapted_traits.get('explanation', ''),
+            "detected_context": detected_context,
+            "adapted_traits": adapted_traits
+        })
+        
+    except Exception as e:
+        print(f"Adaptive generation error: {e}")
+        return jsonify({
+            "error": f"Adaptive response generation failed: {str(e)}",
+            "response": "I'm here to support you. Please try again."
+        }), 500
+
 def load_mbert_model():
     """Load the trained mBERT model and tokenizer"""
     global model, tokenizer
