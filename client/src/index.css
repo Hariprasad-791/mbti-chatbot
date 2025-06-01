@@ -30,6 +30,46 @@ body {
   color: var(--text);
   line-height: 1.6;
 }
+/* Add to your index.css */
+
+/* Emotion Analysis Indicators */
+.emotion-indicator {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    margin-left: 0.3rem;
+    display: inline-block;
+}
+
+.emotion-high-confidence {
+    background: rgba(0, 184, 148, 0.2);
+    color: #00b894;
+    border: 1px solid rgba(0, 184, 148, 0.3);
+}
+
+.emotion-medium-confidence {
+    background: rgba(253, 203, 110, 0.2);
+    color: #fdcb6e;
+    border: 1px solid rgba(253, 203, 110, 0.3);
+}
+
+.emotion-low-confidence {
+    background: rgba(99, 110, 114, 0.2);
+    color: #636e72;
+    border: 1px solid rgba(99, 110, 114, 0.3);
+}
+
+/* Enhanced adaptation messages */
+.message-bubble.adaptation .message-text {
+    background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+    color: white;
+    border-left: 4px solid #00a085;
+    font-size: 0.9rem;
+    padding: 1rem 1.5rem;
+    border-radius: 15px;
+    box-shadow: 0 2px 8px rgba(0, 184, 148, 0.2);
+}
 
 
 /* Fixed Message Input */

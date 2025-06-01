@@ -5,28 +5,30 @@ import TextareaAutosize from 'react-textarea-autosize';
 
 const BOT_AVATAR = '/bot-avatar.png';
 
-// Simple Context Detection (Core Innovation)
-const ContextDetector = {
-    detectContext: (message) => {
-        const lowerMessage = message.toLowerCase();
-        
-        // Stress context
-        const stressKeywords = ['stressed', 'overwhelmed', 'anxious', 'worried', 'panic', 'deadline', 'exam', 'test', 'pressure'];
-        const stressCount = stressKeywords.filter(keyword => lowerMessage.includes(keyword)).length;
-        
-        // Curiosity context
-        const curiosityKeywords = ['how', 'why', 'what', 'learn', 'understand', 'explain', 'curious', 'interesting'];
-        const curiosityCount = curiosityKeywords.filter(keyword => lowerMessage.includes(keyword)).length;
-        
-        // Social anxiety context
-        const socialKeywords = ['presentation', 'group', 'people', 'social', 'awkward', 'nervous', 'speaking'];
-        const socialCount = socialKeywords.filter(keyword => lowerMessage.includes(keyword)).length;
-        
-        // Determine primary context
-        if (stressCount >= 1) return 'stress';
-        if (socialCount >= 1) return 'social_anxiety';
-        if (curiosityCount >= 1) return 'curiosity';
-        return 'normal';
+const EnhancedContextDetector = {
+    detectContext: async (message) => {
+        try {
+            // Call the transformer-based emotion analysis
+            const response = await axios.post('http://localhost:5001/analyze_emotion', {
+                text: message
+            });
+            
+            return {
+                primary_context: response.data.primary_context,
+                confidence: response.data.confidence,
+                detected_emotions: response.data.emotions,
+                all_contexts: response.data.all_contexts
+            };
+        } catch (error) {
+            console.error('Emotion analysis failed:', error);
+            // Fallback to simple keyword detection
+            return {
+                primary_context: 'normal',
+                confidence: 0.0,
+                detected_emotions: [['neutral', 0.5]],
+                all_contexts: {}
+            };
+        }
     }
 };
 
@@ -44,9 +46,10 @@ const ChatInterface = ({ user }) => {
     const [mcqIndex, setMcqIndex] = useState(0);
     const [mcqAnswers, setMcqAnswers] = useState([]);
     const [isMcqCompleted, setIsMcqCompleted] = useState(!!user?.mbti);
-    
+    const [previousContext, setPreviousContext] = useState('normal');
     // New state for context tracking
     const [currentContext, setCurrentContext] = useState('normal');
+    const [isLoading, setIsLoading] = useState(false);
     
     const chatEndRef = useRef(null);
 
@@ -185,16 +188,20 @@ const ChatInterface = ({ user }) => {
         fetchUserMbti();
     }, []);
 
-    // Enhanced handleSend with context detection
-    const handleSend = async () => {
-        if (!message.trim()) return;
+const handleSend = async () => {
+    if (!message.trim() || isLoading) return;
+    
+    setIsLoading(true); // Prevent duplicate requests
+    const userMessage = message.trim();
+    setMessage('');
+    
+    try {
+        // Store previous context before updating
+        setPreviousContext(currentContext);
         
-        const userMessage = message.trim();
-        setMessage('');
-        
-        // Detect context from user message
-        const detectedContext = ContextDetector.detectContext(userMessage);
-        setCurrentContext(detectedContext);
+        // Enhanced context detection using transformer
+        const contextData = await EnhancedContextDetector.detectContext(userMessage);
+        setCurrentContext(contextData.primary_context);
         
         const userEntry = {
             isUser: true,
@@ -205,80 +212,88 @@ const ChatInterface = ({ user }) => {
         setChatHistory(prev => [...prev, userEntry]);
         setMessageCount(prev => prev + 1);
 
-        try {
-            const token = localStorage.getItem('token');
-            
-            // Store user message
-            await axios.post(
-                'http://localhost:5000/api/chat/analyze',
-                { message: userMessage },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+        const token = localStorage.getItem('token');
+        
+        // Store user message
+        await axios.post(
+            'http://localhost:5000/api/chat/analyze',
+            { message: userMessage },
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
 
-            // Get chat history
-            const historyRes = await axios.get('http://localhost:5000/api/chat/history', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            
-            const recent = Array.isArray(historyRes.data) ? historyRes.data.slice(-5) : [];
-            const chatHistoryForGemini = recent.map(entry => ({
-                user: entry.message,
-                bot: ""
-            }));
+        // Get chat history
+        const historyRes = await axios.get('http://localhost:5000/api/chat/history', {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        const recent = Array.isArray(historyRes.data) ? historyRes.data.slice(-5) : [];
+        const chatHistoryForGemini = recent.map(entry => ({
+            user: entry.message,
+            bot: ""
+        }));
 
-            // Enhanced API call with context
-            const geminiRes = await axios.post('http://localhost:5001/adaptive_generate', {
-                user_query: userMessage,
-                user_personality: userMbti,
-                chat_history: chatHistoryForGemini,
-                detected_context: detectedContext
-            });
+        // Enhanced API call with emotion data
+        const geminiRes = await axios.post('http://localhost:5001/enhanced_adaptive_generate', {
+            user_query: userMessage,
+            user_personality: userMbti,
+            chat_history: chatHistoryForGemini,
+            context_data: contextData // Send full emotion analysis
+        });
 
-            const botMessage = geminiRes.data.response;
-            const adaptationInfo = geminiRes.data.adaptation_info;
-            
-            const botEntry = {
-                isUser: false,
-                message: botMessage,
-                timestamp: new Date().toISOString(),
-                adaptationInfo: adaptationInfo
-            };
+        const botMessage = geminiRes.data.response;
+        const adaptationInfo = geminiRes.data.adaptation_info;
+        const emotionAnalysis = geminiRes.data.emotion_analysis;
+        
+        const botEntry = {
+            isUser: false,
+            message: botMessage,
+            timestamp: new Date().toISOString(),
+            adaptationInfo: adaptationInfo,
+            emotionAnalysis: emotionAnalysis
+        };
 
-            // Store bot response
-            await axios.post(
-                'http://localhost:5000/api/chat/analyze',
-                { message: botMessage },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+        // Store bot response
+        await axios.post(
+            'http://localhost:5000/api/chat/analyze',
+            { message: botMessage },
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
 
-            setChatHistory(prev => [...prev, botEntry]);
+        setChatHistory(prev => [...prev, botEntry]);
 
-            // Add adaptation explanation if context was detected
-            if (detectedContext !== 'normal' && adaptationInfo) {
-                const adaptationEntry = {
-                    isUser: false,
-                    message: `🔄 **Adaptation Note**: ${adaptationInfo}`,
-                    timestamp: new Date().toISOString(),
-                    isAdaptation: true
-                };
-                
-                setTimeout(() => {
-                    setChatHistory(prev => [...prev, adaptationEntry]);
-                }, 1000);
-            }
-
-        } catch (err) {
-            console.error('Enhanced generation failed:', err);
-            setChatHistory(prev => [
-                ...prev,
-                {
-                    isUser: false,
-                    message: '⚠️ I\'m having trouble generating a thoughtful response right now. Please try again.',
-                    timestamp: new Date().toISOString()
-                }
-            ]);
-        }
+    // Only show adaptation messages for significant changes
+     if (contextData.primary_context !== 'normal' && 
+    contextData.confidence > 0.7 && // Increase threshold
+    contextData.primary_context !== previousContext &&
+    contextData.primary_context !== 'academic_pressure') { // Don't show for academic pressure (too common)
+    
+    const adaptationEntry = {
+        isUser: false,
+        message: `🔄 Adapting to your ${contextData.primary_context.replace('_', ' ')}`,
+        timestamp: new Date().toISOString(),
+        isAdaptation: true
     };
+    
+    setTimeout(() => {
+        setChatHistory(prev => [...prev, adaptationEntry]);
+    }, 1500); // Increase delay
+}
+
+
+    } catch (err) {
+        console.error('Enhanced generation failed:', err);
+        setChatHistory(prev => [
+            ...prev,
+            {
+                isUser: false,
+                message: '⚠️ I\'m having trouble generating a thoughtful response right now. Please try again.',
+                timestamp: new Date().toISOString()
+            }
+        ]);
+    } finally {
+        setIsLoading(false); // Always reset loading state
+    }
+};
 
     const handleInputKeyDown = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
