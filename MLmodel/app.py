@@ -29,10 +29,214 @@ gemini_model = genai.GenerativeModel("gemini-2.0-flash")
 MAX_SEQ_LEN = 128
 MBERT_MODEL_NAME = "bert-base-multilingual-cased"
 
-# Add this new route to your existing MLmodel/app.py file
+# Add these imports at the top of your app.py
+import torch
+import numpy as np
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import logging
 
-# Personality Adaptation Engine (Core Innovation)
-class PersonalityAdaptationEngine:
+# Set up logging to handle warnings
+logging.getLogger("transformers").setLevel(logging.ERROR)
+
+class EmotionContextClassifier:
+    def __init__(self):
+        try:
+            # Use the working emotion model
+            self.model_name = "j-hartmann/emotion-english-distilroberta-base"
+            print(f"Loading emotion model: {self.model_name}")
+            
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                self.model_name,
+                clean_up_tokenization_spaces=True
+            )
+            self.model = AutoModelForSequenceClassification.from_pretrained(
+                self.model_name,
+                return_dict=True
+            )
+            
+            # Set model to evaluation mode
+            self.model.eval()
+            
+            print("Emotion model loaded successfully!")
+            
+        except Exception as e:
+            print(f"Error loading emotion model: {e}")
+            print("Falling back to VADER sentiment analysis...")
+            self.model = None
+            self.tokenizer = None
+            # Initialize VADER as fallback
+            from nltk.sentiment.vader import SentimentIntensityAnalyzer
+            self.vader_analyzer = SentimentIntensityAnalyzer()
+        
+        # Updated emotion labels for this model
+        self.emotion_labels = [
+            'anger', 'disgust', 'fear', 'joy', 'neutral', 'sadness', 'surprise'
+        ]
+        
+        # Enhanced emotion to context mapping
+        self.emotion_to_context = {
+            'stress': ['fear', 'sadness', 'anger'],
+            'social_anxiety': ['fear', 'neutral', 'sadness'],
+            'curiosity': ['joy', 'surprise'],
+            'positive': ['joy'],
+            'academic_pressure': ['fear', 'sadness', 'anger', 'disgust'],
+            'emotional_support': ['sadness', 'fear', 'anger'],
+            'excitement': ['joy', 'surprise']
+        }
+        
+        # Academic-specific keywords for enhanced detection
+        self.academic_keywords = {
+            'exam_stress': ['exam', 'test', 'quiz', 'midterm', 'final'],
+            'assignment_pressure': ['assignment', 'project', 'deadline', 'due'],
+            'social_academic': ['presentation', 'group work', 'class discussion'],
+            'study_issues': ['study', 'studying', 'learn', 'understand']
+        }
+    
+    def classify_emotion(self, text):
+        """Classify emotions using DistilRoBERTa with fallback"""
+        if self.model is None or self.tokenizer is None:
+            # Fallback to VADER-based emotion classification
+            return self._fallback_emotion_classification(text)
+        
+        try:
+            # Preprocess text
+            text = text.strip()
+            if not text:
+                return [('neutral', 0.5)]
+            
+            # Tokenize and get model predictions
+            inputs = self.tokenizer(
+                text, 
+                return_tensors="pt", 
+                truncation=True, 
+                max_length=128,
+                padding=True
+            )
+            
+            with torch.no_grad():
+                outputs = self.model(**inputs)
+                logits = outputs.logits
+                probs = torch.softmax(logits, dim=-1).detach().numpy().flatten()
+            
+            # Get top 3 emotions with probabilities
+            top_indices = np.argsort(probs)[-3:][::-1]
+            top_emotions = [(self.emotion_labels[i], float(probs[i])) for i in top_indices]
+            
+            return top_emotions
+            
+        except Exception as e:
+            print(f"Emotion classification error: {e}")
+            # Fallback to VADER
+            return self._fallback_emotion_classification(text)
+    
+    def _fallback_emotion_classification(self, text):
+        """Fallback emotion classification using VADER + keywords"""
+        try:
+            sentiment = self.vader_analyzer.polarity_scores(text)
+            text_lower = text.lower()
+            
+            # Enhanced keyword-based emotion detection
+            if sentiment['compound'] < -0.3:
+                if any(keyword in text_lower for keywords in self.academic_keywords.values() for keyword in keywords):
+                    return [('fear', abs(sentiment['compound'])), ('sadness', abs(sentiment['neg'])), ('neutral', 0.1)]
+                elif any(word in text_lower for word in ['angry', 'mad', 'frustrated', 'annoyed']):
+                    return [('anger', abs(sentiment['compound'])), ('disgust', abs(sentiment['neg'])), ('neutral', 0.1)]
+                else:
+                    return [('sadness', abs(sentiment['compound'])), ('fear', abs(sentiment['neg'])), ('neutral', 0.1)]
+            elif sentiment['compound'] > 0.3:
+                if any(word in text_lower for word in ['curious', 'interesting', 'wow', 'amazing']):
+                    return [('surprise', sentiment['compound']), ('joy', sentiment['pos']), ('neutral', 0.1)]
+                else:
+                    return [('joy', sentiment['compound']), ('surprise', sentiment['pos']), ('neutral', 0.1)]
+            else:
+                return [('neutral', 0.6), ('sadness', 0.2), ('joy', 0.2)]
+                
+        except Exception as e:
+            print(f"Fallback emotion classification error: {e}")
+            return [('neutral', 0.5)]
+    def detect_positive_context(self, text, emotions):
+         
+         """Detect positive emotional states"""
+         positive_words = ['better', 'good', 'great', 'helpful', 'amazing', 'fantastic', 'love', 'awesome', 'wonderful', 'excellent', 'wow']
+         curiosity_words = ['how', 'explain', 'interesting', 'why', 'what', 'tell me', 'show me', 'can you explain']
+         planning_words = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'schedule', 'then', 'first', 'next']
+    
+         text_lower = text.lower()
+    
+    # Check if it's planning/scheduling (not curiosity)
+         if any(word in text_lower for word in planning_words):
+            return None  # Let normal emotion detection handle it
+    
+    # Check for genuine curiosity (questions + positive emotions)
+         curiosity_score = sum(1 for word in curiosity_words if word in text_lower)
+         positive_score = sum(1 for word in positive_words if word in text_lower)
+    
+    # Only return curiosity if there are actual questions AND positive emotions
+         if curiosity_score > 0 and (positive_score > 0 or any(emotion == 'joy' for emotion, prob in emotions if prob > 0.4)):
+              return 'curiosity'
+         elif positive_score > 0:
+             return 'positive'
+    
+         return None
+   
+    def detect_context(self, text):
+        """Enhanced context detection using emotion classification"""
+        emotions = self.classify_emotion(text)
+        text_lower = text.lower()
+        context_scores = {}
+        
+        # First, check for positive context using the new method
+        positive_context = self.detect_positive_context(text, emotions)
+        if positive_context:
+            if positive_context == 'curiosity':
+                context_scores['curiosity'] = context_scores.get('curiosity', 0) + 0.5
+            elif positive_context == 'positive':
+                context_scores['positive'] = context_scores.get('positive', 0) + 0.4
+        
+        # Calculate context scores based on detected emotions
+        for context, emotion_list in self.emotion_to_context.items():
+            score = 0
+            for emotion, prob in emotions:
+                if emotion in emotion_list:
+                    score += prob
+            context_scores[context] = context_scores.get(context, 0) + score
+        
+        # Enhanced academic context detection
+        academic_boost = 0
+        for category, keywords in self.academic_keywords.items():
+            if any(keyword in text_lower for keyword in keywords):
+                academic_boost += 0.2
+                # Boost academic_pressure context
+                if 'academic_pressure' in context_scores:
+                    context_scores['academic_pressure'] += academic_boost
+        
+        # Get primary context
+        primary_context = max(context_scores, key=context_scores.get) if context_scores else 'normal'
+        primary_score = context_scores.get(primary_context, 0)
+        
+        # Adjust threshold based on academic content
+        threshold = 0.25 if academic_boost > 0 else 0.3
+        
+        # Only return context if confidence is above threshold
+        if primary_score > threshold:
+            return {
+                'primary_context': primary_context,
+                'confidence': min(primary_score, 1.0),  # Cap at 1.0
+                'detected_emotions': emotions,
+                'all_contexts': context_scores,
+                'academic_boost': academic_boost > 0
+            }
+        else:
+            return {
+                'primary_context': 'normal',
+                'confidence': 0.0,
+                'detected_emotions': emotions,
+                'all_contexts': context_scores,
+                'academic_boost': False
+            }
+
+# Add this class after EmotionContextClassifier in your app.py
+class EnhancedPersonalityAdaptationEngine:
     def __init__(self):
         self.adaptation_strategies = {
             'stress': {
@@ -55,105 +259,161 @@ class PersonalityAdaptationEngine:
             }
         }
     
-    def adapt_personality(self, base_mbti, context):
-        """Core innovation: Dynamic personality adaptation based on context"""
-        if context == 'stress':
-            return self._adapt_for_stress(base_mbti)
-        elif context == 'social_anxiety':
-            return self._adapt_for_social_anxiety(base_mbti)
-        elif context == 'curiosity':
-            return self._adapt_for_curiosity(base_mbti)
+    def adapt_personality(self, base_mbti, context_data):
+        """Enhanced personality adaptation using emotion data"""
+        primary_context = context_data.get('primary_context', 'normal')
+        confidence = context_data.get('confidence', 0)
+        emotions = context_data.get('detected_emotions', [])
+        
+        # Determine adaptation level based on confidence
+        adaptation_level = 'high' if confidence > 0.7 else 'medium' if confidence > 0.4 else 'low'
+        
+        if primary_context == 'stress':
+            return self._adapt_for_stress(base_mbti, emotions, adaptation_level)
+        elif primary_context == 'social_anxiety':
+            return self._adapt_for_social_anxiety(base_mbti, emotions, adaptation_level)
+        elif primary_context == 'curiosity':
+            return self._adapt_for_curiosity(base_mbti, emotions, adaptation_level)
+        elif primary_context == 'positive':
+            return self._adapt_for_positive(base_mbti, emotions, adaptation_level)
+        elif primary_context == 'academic_pressure':
+            return self._adapt_for_academic_pressure(base_mbti, emotions, adaptation_level)
+        elif primary_context == 'emotional_support':
+            return self._adapt_for_emotional_support(base_mbti, emotions, adaptation_level)
         else:
-            return {'style': 'normal', 'approach': base_mbti}
+            return {'style': 'normal', 'approach': base_mbti, 'adaptation_level': 'none'}
     
-    def _adapt_for_stress(self, base_mbti):
-        """Temporarily shift to supportive traits regardless of base type"""
+    def _adapt_for_stress(self, base_mbti, emotions, level):
+        dominant_emotion = emotions[0][0] if emotions else 'neutral'
+        
         return {
             'style': 'supportive_structured',
             'approach': 'calm_then_solve',
             'tone': 'gentle_understanding',
-            'explanation': f'Adapting from {base_mbti} to provide stress-specific support'
+            'adaptation_level': level,
+            'dominant_emotion': dominant_emotion,
+            'explanation': f'Adapting from {base_mbti} to provide stress-specific support (detected: {dominant_emotion})'
         }
     
-    def _adapt_for_social_anxiety(self, base_mbti):
-        """Adapt for social anxiety situations"""
+    def _adapt_for_social_anxiety(self, base_mbti, emotions, level):
         return {
             'style': 'gentle_encouraging',
             'approach': 'validate_then_guide',
             'tone': 'understanding_supportive',
+            'adaptation_level': level,
             'explanation': f'Adapting from {base_mbti} to address social anxiety'
         }
     
-    def _adapt_for_curiosity(self, base_mbti):
-        """Adapt for curiosity and learning"""
+    def _adapt_for_curiosity(self, base_mbti, emotions, level):
         return {
             'style': 'exploratory_detailed',
             'approach': 'expand_and_explore',
             'tone': 'enthusiastic_informative',
-            'explanation': f'Adapting from {base_mbti} to match your curiosity'
+            'adaptation_level': level,
+            'explanation': f'Adapting from {base_mbti} to match your curiosity and excitement'
+        }
+    
+    def _adapt_for_positive(self, base_mbti, emotions, level):
+        return {
+            'style': 'encouraging_supportive',
+            'approach': 'build_on_positivity',
+            'tone': 'warm_enthusiastic',
+            'adaptation_level': level,
+            'explanation': f'Adapting from {base_mbti} to match your positive energy'
+        }
+    
+    def _adapt_for_academic_pressure(self, base_mbti, emotions, level):
+        return {
+            'style': 'structured_supportive',
+            'approach': 'break_down_and_plan',
+            'tone': 'calm_strategic',
+            'adaptation_level': level,
+            'explanation': f'Adapting from {base_mbti} to help with academic pressure'
+        }
+    
+    def _adapt_for_emotional_support(self, base_mbti, emotions, level):
+        return {
+            'style': 'empathetic_caring',
+            'approach': 'listen_then_support',
+            'tone': 'warm_understanding',
+            'adaptation_level': level,
+            'explanation': f'Adapting from {base_mbti} to provide emotional support'
         }
 
-# Add this new route to your existing app.py
-@app.route('/adaptive_generate', methods=['POST'])
-def adaptive_generate():
-    """Generate adaptive response with personality shifting"""
-    from nltk.sentiment.vader import SentimentIntensityAnalyzer
-    
+# Initialize the emotion classifier globally (add this after the class definition)
+try:
+    emotion_classifier = EmotionContextClassifier()
+    print("Emotion classifier initialized successfully!")
+except Exception as e:
+    print(f"Failed to initialize emotion classifier: {e}")
+    emotion_classifier = None
+
+# Enhanced route with better error handling
+@app.route('/enhanced_adaptive_generate', methods=['POST'])
+def enhanced_adaptive_generate():
+    """Generate adaptive response with transformer-based emotion detection"""
     try:
         data = request.get_json()
         query = data.get("user_query", "")
         base_mbti = data.get("user_personality", "")
         chat_history = data.get("chat_history", [])
-        detected_context = data.get("detected_context", "normal")
         
-        # Initialize adaptation engine
-        adaptation_engine = PersonalityAdaptationEngine()
+        if not emotion_classifier:
+            return jsonify({
+                "error": "Emotion classifier not available",
+                "response": "I'm here to support you. Please try again."
+            }), 500
         
-        # Adapt personality based on context
-        adapted_traits = adaptation_engine.adapt_personality(base_mbti, detected_context)
+        # Enhanced context detection using transformer
+        context_data = emotion_classifier.detect_context(query)
+        
+        # Initialize enhanced adaptation engine
+        adaptation_engine = EnhancedPersonalityAdaptationEngine()
+        
+        # Adapt personality based on emotion-detected context
+        adapted_traits = adaptation_engine.adapt_personality(base_mbti, context_data)
         
         # Create chat history string
         chat_string = "\n".join([f"User: {entry['user']}\nBot: {entry['bot']}" for entry in chat_history])
         
-        # Analyze sentiment
-        sid = SentimentIntensityAnalyzer()
-        sentiment = sid.polarity_scores(query)
-        emotion = (
-            "positive" if sentiment['compound'] > 0.05 else
-            "negative" if sentiment['compound'] < -0.05 else
-            "neutral"
-        )
+        # Create enhanced prompt with emotion data
+        emotions_str = ", ".join([f"{emotion} ({prob:.2f})" for emotion, prob in context_data['detected_emotions']])
         
-        # Create adaptive prompt
         prompt = f"""
 You are an AI companion with adaptive personality responding to a university student.
 
+EMOTION ANALYSIS:
+- Detected Emotions: {emotions_str}
+- Primary Context: {context_data['primary_context']} (confidence: {context_data['confidence']:.2f})
+- Academic Context: {'Yes' if context_data.get('academic_boost', False) else 'No'}
+- Adaptation Level: {adapted_traits.get('adaptation_level', 'none')}
+
 PERSONALITY ADAPTATION:
 - Base Personality: {base_mbti}
-- Detected Context: {detected_context}
 - Adapted Style: {adapted_traits.get('style', 'normal')}
 - Adapted Approach: {adapted_traits.get('approach', 'standard')}
 - Adapted Tone: {adapted_traits.get('tone', 'balanced')}
 
 STUDENT QUERY: {query}
-EMOTIONAL STATE: {emotion}
 
 CONVERSATION HISTORY:
 {chat_string}
 
-ADAPTATION RULES:
-1. If context is "stress": Provide calming support first, then structured solutions
-2. If context is "social_anxiety": Validate their feelings, then gentle encouragement
-3. If context is "curiosity": Match their enthusiasm and provide detailed exploration
-4. If context is "normal": Respond with base {base_mbti} personality
+ENHANCED ADAPTATION RULES:
+1. If primary context is "stress" or "academic_pressure": Provide calming support first, then structured solutions
+2. If "social_anxiety" detected: Validate their social concerns, offer gentle encouragement
+3. If "curiosity" or "positive": Match their enthusiasm and provide engaging explanations
+4. If "emotional_support" needed: Lead with empathy before offering practical advice
+5. Adapt your {base_mbti} communication style to match their current emotional needs
 
 RESPONSE GUIDELINES:
-- Adapt your communication style while maintaining your core helpfulness
-- For stress: "I can sense you're feeling overwhelmed. Let's break this down together..."
-- For social anxiety: "Social situations can feel challenging, and that's completely normal..."
-- For curiosity: "I love your curiosity! Let's dive deep into this topic..."
+- Keep response under 120 words
+- Be conversational, not lecture-style
+- Focus on 1-2 key points maximum
+- Ask engaging follow-up questions
+- Use natural, friendly tone
 
-Generate a response that demonstrates this personality adaptation.
+Generate a response that demonstrates this emotion-aware personality adaptation.
 """
         
         # Generate response using Gemini
@@ -163,16 +423,46 @@ Generate a response that demonstrates this personality adaptation.
         return jsonify({
             "response": response.text.strip(),
             "adaptation_info": adapted_traits.get('explanation', ''),
-            "detected_context": detected_context,
-            "adapted_traits": adapted_traits
+            "context_data": context_data,
+            "adapted_traits": adapted_traits,
+            "emotion_analysis": {
+                "detected_emotions": context_data['detected_emotions'],
+                "primary_context": context_data['primary_context'],
+                "confidence": context_data['confidence'],
+                "academic_context": context_data.get('academic_boost', False)
+            }
         })
         
     except Exception as e:
-        print(f"Adaptive generation error: {e}")
+        print(f"Enhanced adaptive generation error: {e}")
         return jsonify({
-            "error": f"Adaptive response generation failed: {str(e)}",
+            "error": f"Enhanced adaptive response generation failed: {str(e)}",
             "response": "I'm here to support you. Please try again."
         }), 500
+
+# Add the enhanced route for emotion analysis
+@app.route('/analyze_emotion', methods=['POST'])
+def analyze_emotion():
+    """Standalone emotion analysis endpoint"""
+    try:
+        data = request.get_json()
+        text = data.get("text", "")
+        
+        if not emotion_classifier:
+            return jsonify({"error": "Emotion classifier not available"}), 500
+        
+        context_data = emotion_classifier.detect_context(text)
+        
+        return jsonify({
+            "emotions": context_data['detected_emotions'],
+            "primary_context": context_data['primary_context'],
+            "confidence": context_data['confidence'],
+            "all_contexts": context_data['all_contexts'],
+            "academic_context": context_data.get('academic_boost', False)
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 def load_mbert_model():
     """Load the trained mBERT model and tokenizer"""
