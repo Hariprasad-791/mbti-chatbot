@@ -1,8 +1,9 @@
 // ChatInterface.jsx - Replace the entire file
-import React, { useState, useEffect, useRef } from 'react';
+
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import TextareaAutosize from 'react-textarea-autosize';
-
+import { useTranslation } from 'react-i18next';
 const BOT_AVATAR = '/bot-avatar.png';
 
 const EnhancedContextDetector = {
@@ -12,7 +13,7 @@ const EnhancedContextDetector = {
             const response = await axios.post('http://localhost:5001/analyze_emotion', {
                 text: message
             });
-            
+
             return {
                 primary_context: response.data.primary_context,
                 confidence: response.data.confidence,
@@ -33,11 +34,13 @@ const EnhancedContextDetector = {
 };
 
 const ChatInterface = ({ user }) => {
+     const { t, i18n } = useTranslation();
+    
     const [message, setMessage] = useState('');
     const [chatHistory, setChatHistory] = useState([
         {
             isUser: false,
-            message: `Hi ${user?.username || 'there'}! I'm your adaptive personality companion. Let's start by understanding your personality type through a quick assessment. 🌟`,
+            message: `Hi ${user?.username || 'there'}! I'm your ${t('chatTitle')}. Let's start by understanding your personality type through a quick assessment. 🌟`,
             timestamp: new Date().toISOString()
         }
     ]);
@@ -47,123 +50,122 @@ const ChatInterface = ({ user }) => {
     const [mcqAnswers, setMcqAnswers] = useState([]);
     const [isMcqCompleted, setIsMcqCompleted] = useState(!!user?.mbti);
     const [previousContext, setPreviousContext] = useState('normal');
-    // New state for context tracking
     const [currentContext, setCurrentContext] = useState('normal');
     const [isLoading, setIsLoading] = useState(false);
-    
+
     const chatEndRef = useRef(null);
 
-    // Complete MCQ Questions (12 questions as shown in your interface)
-    const initialQuestions = [
+    // Complete translated MCQ questions using useMemo
+    const initialQuestions = useMemo(() => [
         {
-            q: "How do you prefer to spend your free time?",
+            q: t("freeTimeQuestion"),
             options: [
-                "Attending social events or meeting new people",
-                "Spending time alone or with a close friend",
-                "Exploring nature or observing your surroundings",
-                "Reflecting on abstract ideas or journaling"
+                t("freeTimeOptions.social"),
+                t("freeTimeOptions.alone"),
+                t("freeTimeOptions.nature"),
+                t("freeTimeOptions.reflect")
             ]
         },
         {
-            q: "In conversations, you tend to:",
+            q: t("conversationQuestion"),
             options: [
-                "Talk about ideas and possibilities",
-                "Focus on concrete facts and details",
-                "Share personal experiences and feelings",
-                "Discuss logical solutions to problems"
+                t("conversationOptions.ideas"),
+                t("conversationOptions.facts"),
+                t("conversationOptions.experiences"),
+                t("conversationOptions.solutions")
             ]
         },
         {
-            q: "When problem-solving, you usually:",
+            q: t("problemSolvingQuestion"),
             options: [
-                "Brainstorm multiple creative solutions",
-                "Follow a systematic, step-by-step approach",
-                "Consider how it affects people involved",
-                "Analyze data and logical connections"
+                t("problemSolvingOptions.creative"),
+                t("problemSolvingOptions.systematic"),
+                t("problemSolvingOptions.people"),
+                t("problemSolvingOptions.logical")
             ]
         },
         {
-            q: "You recall most easily:",
+            q: t("recallQuestion"),
             options: [
-                "The overall concepts and big picture",
-                "Specific details and factual information",
-                "How situations made you feel",
-                "The logical structure of information"
+                t("recallOptions.concepts"),
+                t("recallOptions.details"),
+                t("recallOptions.feelings"),
+                t("recallOptions.structure")
             ]
         },
         {
-            q: "You make decisions by:",
+            q: t("decisionQuestion"),
             options: [
-                "Following your gut feeling and values",
-                "Weighing pros and cons objectively",
-                "Considering impact on relationships",
-                "Using logical analysis and data"
+                t("decisionOptions.gut"),
+                t("decisionOptions.pros"),
+                t("decisionOptions.relationships"),
+                t("decisionOptions.analysis")
             ]
         },
         {
-            q: "In group work, you take on the role of someone who:",
+            q: t("groupWorkQuestion"),
             options: [
-                "Generates ideas and motivates others",
-                "Organizes tasks and ensures completion",
-                "Mediates conflicts and supports team members",
-                "Analyzes problems and provides solutions"
+                t("groupWorkOptions.motivator"),
+                t("groupWorkOptions.organizer"),
+                t("groupWorkOptions.mediator"),
+                t("groupWorkOptions.analyzer")
             ]
         },
         {
-            q: "Your day is usually planned by:",
+            q: t("planningQuestion"),
             options: [
-                "Keeping it flexible for spontaneous activities",
-                "Having a structured schedule with set times",
-                "Balancing planned activities with free time",
-                "Focusing on priority tasks without strict timing"
+                t("planningOptions.flexible"),
+                t("planningOptions.structured"),
+                t("planningOptions.balanced"),
+                t("planningOptions.priority")
             ]
         },
         {
-            q: "Your ideal work environment is:",
+            q: t("workEnvironmentQuestion"),
             options: [
-                "Dynamic with variety and new challenges",
-                "Organized with clear procedures and deadlines",
-                "Collaborative with supportive colleagues",
-                "Independent with minimal interruptions"
+                t("workEnvironmentOptions.dynamic"),
+                t("workEnvironmentOptions.organized"),
+                t("workEnvironmentOptions.collaborative"),
+                t("workEnvironmentOptions.independent")
             ]
         },
         {
-            q: "When plans change unexpectedly, you usually:",
+            q: t("changeQuestion"),
             options: [
-                "Adapt quickly and see it as an opportunity",
-                "Feel stressed and prefer to stick to original plans",
-                "Go with the flow if it doesn't hurt anyone",
-                "Evaluate if the change makes logical sense"
+                t("changeOptions.adapt"),
+                t("changeOptions.stressed"),
+                t("changeOptions.flow"),
+                t("changeOptions.evaluate")
             ]
         },
         {
-            q: "In discussions, you:",
+            q: t("discussionQuestion"),
             options: [
-                "Enjoy exploring different perspectives",
-                "Prefer to have all the facts before contributing",
-                "Focus on finding common ground",
-                "Present logical arguments and evidence"
+                t("discussionOptions.explore"),
+                t("discussionOptions.facts"),
+                t("discussionOptions.common"),
+                t("discussionOptions.arguments")
             ]
         },
         {
-            q: "You're most productive when you:",
+            q: t("productiveQuestion"),
             options: [
-                "Work in bursts of inspiration",
-                "Follow a consistent routine",
-                "Collaborate with others",
-                "Have uninterrupted thinking time"
+                t("productiveOptions.bursts"),
+                t("productiveOptions.routine"),
+                t("productiveOptions.collaborate"),
+                t("productiveOptions.uninterrupted")
             ]
         },
         {
-            q: "Your friends would say you're:",
+            q: t("friendsQuestion"),
             options: [
-                "Enthusiastic and full of ideas",
-                "Reliable and detail-oriented",
-                "Caring and good at understanding others",
-                "Logical and good at solving problems"
+                t("friendsOptions.enthusiastic"),
+                t("friendsOptions.reliable"),
+                t("friendsOptions.caring"),
+                t("friendsOptions.logical")
             ]
         }
-    ];
+    ], [t]);
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -191,15 +193,16 @@ const ChatInterface = ({ user }) => {
 const handleSend = async () => {
     if (!message.trim() || isLoading) return;
     
-    setIsLoading(true); // Prevent duplicate requests
+    setIsLoading(true);
     const userMessage = message.trim();
     setMessage('');
     
+    // Move this OUTSIDE the try block
+    const selectedLanguage = localStorage.getItem('selectedLanguage') || 'en';
+    
     try {
-        // Store previous context before updating
         setPreviousContext(currentContext);
         
-        // Enhanced context detection using transformer
         const contextData = await EnhancedContextDetector.detectContext(userMessage);
         setCurrentContext(contextData.primary_context);
         
@@ -213,6 +216,8 @@ const handleSend = async () => {
         setMessageCount(prev => prev + 1);
 
         const token = localStorage.getItem('token');
+        
+        // selectedLanguage is now accessible here
         
         // Store user message
         await axios.post(
@@ -232,12 +237,13 @@ const handleSend = async () => {
             bot: ""
         }));
 
-        // Enhanced API call with emotion data
+        // Enhanced API call with language parameter
         const geminiRes = await axios.post('http://localhost:5001/enhanced_adaptive_generate', {
             user_query: userMessage,
             user_personality: userMbti,
             chat_history: chatHistoryForGemini,
-            context_data: contextData // Send full emotion analysis
+            context_data: contextData,
+            user_language: selectedLanguage
         });
 
         const botMessage = geminiRes.data.response;
@@ -261,39 +267,58 @@ const handleSend = async () => {
 
         setChatHistory(prev => [...prev, botEntry]);
 
-    // Only show adaptation messages for significant changes
-     if (contextData.primary_context !== 'normal' && 
-    contextData.confidence > 0.7 && // Increase threshold
-    contextData.primary_context !== previousContext &&
-    contextData.primary_context !== 'academic_pressure') { // Don't show for academic pressure (too common)
-    
-    const adaptationEntry = {
-        isUser: false,
-        message: `🔄 Adapting to your ${contextData.primary_context.replace('_', ' ')}`,
-        timestamp: new Date().toISOString(),
-        isAdaptation: true
-    };
-    
-    setTimeout(() => {
-        setChatHistory(prev => [...prev, adaptationEntry]);
-    }, 1500); // Increase delay
-}
-
+        // Only show adaptation messages for significant changes
+        if (contextData.primary_context !== 'normal' && 
+            contextData.confidence > 0.6 && 
+            contextData.primary_context !== previousContext) {
+            
+            const getKannadaContext = (context) => {
+                const contextMap = {
+                    'stress': 'ಒತ್ತಡ',
+                    'social_anxiety': 'ಸಾಮಾಜಿಕ ಆತಂಕ',
+                    'curiosity': 'ಕುತೂಹಲ',
+                    'academic_pressure': 'ಶೈಕ್ಷಣಿಕ ಒತ್ತಡ',
+                    'positive': 'ಧನಾತ್ಮಕ ಭಾವನೆ'
+                };
+                return contextMap[context] || context;
+            };
+            
+            const adaptationEntry = {
+                isUser: false,
+                message: selectedLanguage === 'kn' 
+                    ? `🔄 ನಿಮ್ಮ ${getKannadaContext(contextData.primary_context)}ಗೆ ಹೊಂದಿಕೊಳ್ಳುತ್ತಿದೆ`
+                    : `🔄 Adapting to your ${contextData.primary_context.replace('_', ' ')}`,
+                timestamp: new Date().toISOString(),
+                isAdaptation: true
+            };
+            
+            setTimeout(() => {
+                setChatHistory(prev => [...prev, adaptationEntry]);
+            }, 1000);
+        }
 
     } catch (err) {
         console.error('Enhanced generation failed:', err);
+        
+        // selectedLanguage is now accessible in catch block too
+        const errorMessage = selectedLanguage === 'kn' 
+            ? '⚠️ ನಾನು ಈಗ ಉತ್ತರ ನೀಡಲು ಕಷ್ಟಪಡುತ್ತಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.'
+            : '⚠️ I\'m having trouble generating a thoughtful response right now. Please try again.';
+        
         setChatHistory(prev => [
             ...prev,
             {
                 isUser: false,
-                message: '⚠️ I\'m having trouble generating a thoughtful response right now. Please try again.',
+                message: errorMessage,
                 timestamp: new Date().toISOString()
             }
         ]);
     } finally {
-        setIsLoading(false); // Always reset loading state
+        setIsLoading(false);
     }
 };
+
+
 
     const handleInputKeyDown = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -313,37 +338,37 @@ const handleSend = async () => {
         try {
             const token = localStorage.getItem("token");
             const combinedText = combineAnswersForDatasetStyle(questions, answers);
-            
+
             const mbtiResponse = await axios.post('http://localhost:5001/predict', {
                 text: combinedText
             });
-            
+
             const mbti = mbtiResponse.data.mbti;
             const confidence = mbtiResponse.data.confidence;
-            
+
             await axios.post("http://localhost:5000/api/chat/update-mbti", {
                 mbti: mbti
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            
+
             setUserMbti(mbti);
             setChatHistory(prev => [
                 ...prev,
-                { 
-                    isUser: false, 
-                    message: `🎯 **MBTI Type Detected**: ${mbti} (Confidence: ${(confidence * 100).toFixed(1)}%)\n\nGreat! Now I can provide personalized support tailored to your ${mbti} personality. Let's start our conversation - what's on your mind today?`, 
-                    timestamp: new Date().toISOString() 
+                {
+                    isUser: false,
+                    message: `🎯 **MBTI Type Detected**: ${mbti} (Confidence: ${(confidence * 100).toFixed(1)}%)\n\nGreat! Now I can provide personalized support tailored to your ${mbti} personality. Let's start our conversation - what's on your mind today?`,
+                    timestamp: new Date().toISOString()
                 }
             ]);
         } catch (err) {
             console.error("MBTI prediction failed:", err);
             setChatHistory(prev => [
                 ...prev,
-                { 
-                    isUser: false, 
-                    message: "⚠️ Failed to analyze personality. Please try again.", 
-                    timestamp: new Date().toISOString() 
+                {
+                    isUser: false,
+                    message: "⚠️ Failed to analyze personality. Please try again.",
+                    timestamp: new Date().toISOString()
                 }
             ]);
         }
@@ -354,32 +379,32 @@ const handleSend = async () => {
         return (
             <div className="chat-container">
                 <div className="mcq-header">
-                    <h3>Personality Assessment</h3>
+                    <h3>{t('personalityAssessment')}</h3>
                     <div className="question-counter">
-                        Question {mcqIndex + 1} of {initialQuestions.length}
+                        {t('questionCounter', { current: mcqIndex + 1, total: initialQuestions.length })}
                     </div>
                     <div className="progress-bar">
-                        <div 
-                            className="progress-fill" 
+                        <div
+                            className="progress-fill"
                             style={{ width: `${((mcqIndex + 1) / initialQuestions.length) * 100}%` }}
                         ></div>
                     </div>
                 </div>
-                
+
                 <div className="mcq-content">
                     <div className="question-text">
                         <h2>{initialQuestions[mcqIndex].q}</h2>
                     </div>
-                    
+
                     <div className="mcq-options">
                         {initialQuestions[mcqIndex].options.map((opt, idx) => (
-                            <button 
-                                key={idx} 
+                            <button
+                                key={idx}
                                 className="mcq-option"
                                 onClick={async () => {
                                     const updatedAnswers = [...mcqAnswers, idx];
                                     setMcqAnswers(updatedAnswers);
-                                    
+
                                     if (mcqIndex === initialQuestions.length - 1) {
                                         setIsMcqCompleted(true);
                                         await summarizeAndPredict(initialQuestions, updatedAnswers);
@@ -414,7 +439,7 @@ const handleSend = async () => {
                     )}
                 </div>
             </div>
-            
+
             <div className="chat-history">
                 {chatHistory.map((msg, idx) => (
                     <div key={idx} className={`message-bubble ${msg.isUser ? 'user' : 'bot'} ${msg.isAdaptation ? 'adaptation' : ''}`}>
@@ -427,25 +452,25 @@ const handleSend = async () => {
                                 )}
                             </div>
                         )}
-                        <div 
-                            className="message-text" 
-                            dangerouslySetInnerHTML={{ __html: msg.message.replace(/\n/g, '<br/>') }} 
+                        <div
+                            className="message-text"
+                            dangerouslySetInnerHTML={{ __html: msg.message.replace(/\n/g, '<br/>') }}
                         />
                         <span className="timestamp">
-                            {new Date(msg.timestamp).toLocaleTimeString([], { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
+                            {new Date(msg.timestamp).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit'
                             })}
                         </span>
                     </div>
                 ))}
                 <div ref={chatEndRef} />
             </div>
-         <div className="message-input-fixed">
+            <div className="message-input-fixed">
                 <textarea
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Type your message here..."
+                    placeholder={t('typingPlaceholder')}
                     onKeyDown={handleInputKeyDown}
                     rows={1}
                     style={{
@@ -463,8 +488,8 @@ const handleSend = async () => {
                         boxSizing: 'border-box'
                     }}
                 />
-                <button 
-                    onClick={handleSend} 
+                <button
+                    onClick={handleSend}
                     disabled={!message.trim()}
                     style={{
                         width: '80px',
@@ -479,7 +504,7 @@ const handleSend = async () => {
                         marginLeft: '12px'
                     }}
                 >
-                    Send
+                    {t('send')}
                 </button>
             </div>
 

@@ -4,8 +4,7 @@ const jwt = require('jsonwebtoken');
 
 exports.signup = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
-
+    const { username, email, password, language = 'en' } = req.body;
     // Validate existing user using single query
     const existingUser = await User.findOne({ 
       $or: [{ username }, { email }] 
@@ -19,7 +18,12 @@ exports.signup = async (req, res) => {
       return res.status(409).json({ message });
     }
 
-    const newUser = await User.create({ username, email, password });
+     const newUser = await User.create({ 
+            username, 
+            email, 
+            password, 
+            language // Add language to user creation
+        });
     
     const token = jwt.sign(
       { id: newUser._id },

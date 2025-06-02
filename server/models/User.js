@@ -25,8 +25,7 @@ const userSchema = new mongoose.Schema({
     },
     language: {
         type: String,
-        enum: ['en', 'kn', 'hi', 'te'], // English, Kannada, Hindi, Telugu
- // English, Kannada
+        enum: ['en', 'kn'],
         default: 'en'
     },
     psychology: {

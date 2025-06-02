@@ -1,51 +1,51 @@
-// components/LanguageSelector.jsx
+// src/components/LanguageSelector.jsx
 import React, { useState } from 'react';
-import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 
-const LanguageSelector = ({ user, onLanguageSelected }) => {
-  const [selectedLanguage, setSelectedLanguage] = useState(user.language || 'en');
-  
-  const languages = [
-    { code: 'en', name: 'English' },
-    { code: 'kn', name: 'ಕನ್ನಡ (Kannada)' },
-    { code: 'hi', name: 'हिंदी (Hindi)' },
-    { code: 'te', name: 'తెలుగు (Telugu)' }
-  ];
-  
-  const handleLanguageSelect = async () => {
-    try {
-      await axios.post('/api/users/update-language', 
-        { language: selectedLanguage },
-        { headers: { 'x-auth-token': localStorage.getItem('token') } }
-      );
-      onLanguageSelected(selectedLanguage);
-    } catch (error) {
-      console.error('Failed to update language preference:', error);
-    }
-  };
-  
-  return (
-    <div className="language-selector">
-      <h2>Select Your Preferred Language</h2>
-      <div className="language-options">
-        {languages.map(lang => (
-          <button
-            key={lang.code}
-            className={`language-btn ${selectedLanguage === lang.code ? 'selected' : ''}`}
-            onClick={() => setSelectedLanguage(lang.code)}
-          >
-            {lang.name}
-          </button>
-        ))}
-      </div>
-      <button 
-        className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 transition"
-        onClick={handleLanguageSelect}
-      >
-        Continue
-      </button>
-    </div>
-  );
+const LanguageSelector = ({ onLanguageSelect }) => {
+    const { t, i18n } = useTranslation();
+    const [selectedLanguage, setSelectedLanguage] = useState('en');
+
+    const languages = [
+        { code: 'en', name: 'English', flag: '🇺🇸' },
+        { code: 'kn', name: 'ಕನ್ನಡ', flag: '🇮🇳' }
+    ];
+
+    const handleLanguageSelect = (langCode) => {
+        setSelectedLanguage(langCode);
+        i18n.changeLanguage(langCode);
+    };
+
+    const handleContinue = () => {
+        localStorage.setItem('selectedLanguage', selectedLanguage);
+        onLanguageSelect(selectedLanguage);
+    };
+
+    return (
+        <div className="language-selector">
+            <div className="language-content">
+                <h2>{t('selectLanguage')}</h2>
+                <p>{t('chooseLanguage')}</p>
+                
+                <div className="language-options">
+                    {languages.map((lang) => (
+                        <button
+                            key={lang.code}
+                            className={`language-btn ${selectedLanguage === lang.code ? 'selected' : ''}`}
+                            onClick={() => handleLanguageSelect(lang.code)}
+                        >
+                            <span className="flag">{lang.flag}</span>
+                            <span className="name">{lang.name}</span>
+                        </button>
+                    ))}
+                </div>
+                
+                <button className="continue-btn" onClick={handleContinue}>
+                    {t('continue')}
+                </button>
+            </div>
+        </div>
+    );
 };
 
 export default LanguageSelector;
