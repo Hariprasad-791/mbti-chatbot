@@ -1,12 +1,15 @@
+// src/index.js - Add i18n import
 import React from 'react';
-import { createRoot } from 'react-dom/client'; // ✅ React 18 import
+import { createRoot } from 'react-dom/client';
 import App from './App';
-import './index.css'; // ✅ Your styles
+import './index.css';
+import './i18n'; // Add this import
 
 const container = document.getElementById('root');
-const root = createRoot(container); // ✅ Use only createRoot once
+const root = createRoot(container);
+
 root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
+    <React.StrictMode>
+        <App />
+    </React.StrictMode>
 );

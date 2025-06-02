@@ -1,112 +1,119 @@
+// src/components/Auth.jsx - Replace with this enhanced version
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 
 const Auth = ({ setUser }) => {
-  const [isSignup, setIsSignup] = useState(false);
-  const [formData, setFormData] = useState({ username: '', email: '', password: '' });
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+    const { t } = useTranslation();
+    const [isSignup, setIsSignup] = useState(false);
+    const [formData, setFormData] = useState({ username: '', email: '', password: '' });
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
 
-  // Clear errors when switching between auth modes
-  useEffect(() => {
-    setError('');
-  }, [isSignup]);
+    useEffect(() => {
+        setError('');
+    }, [isSignup]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-  
-    // Client-side validation
-    if (isSignup && !formData.username.trim()) {
-      return setError('Username is required');
-    }
-    if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
-      return setError('Invalid email format');
-    }
-    if (formData.password.length < 6) {
-      return setError('Password must be at least 6 characters');
-    }
-  
-    try {
-      const endpoint = isSignup
-      ? 'http://localhost:5000/api/auth/signup'
-      : 'http://localhost:5000/api/auth/login';
-    
-      const { data } = await axios.post(endpoint, formData);
-      
-      if (!data.token) throw new Error('Authentication failed');
-      
-      localStorage.setItem('token', data.token);
-      setUser(data.user);
-    } catch (err) {
-      const errorMessage = err.response?.data?.message || 
-                         err.message || 
-                         (isSignup ? 'Registration failed' : 'Login failed');
-      setError(errorMessage);
-    }
-  };
-  
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
 
-  return (
-    <div className="auth-container">
-      <h2>{isSignup ? 'Create Account' : 'Welcome Back'}</h2>
-      
-      <form onSubmit={handleSubmit}>
-        {isSignup && (
-          <input
-            type="text"
-            placeholder="Username"
-            value={formData.username}
-            onChange={e => setFormData(prev => ({ ...prev, username: e.target.value }))}
-            aria-label="Username"
-          />
-        )}
+        // Client-side validation
+        if (isSignup && !formData.username.trim()) {
+            setIsLoading(false);
+            return setError('Username is required');
+        }
+        if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
+            setIsLoading(false);
+            return setError('Invalid email format');
+        }
+        if (formData.password.length < 6) {
+            setIsLoading(false);
+            return setError('Password must be at least 6 characters');
+        }
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={formData.email}
-          onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
-          aria-label="Email"
-          required
-        />
+        try {
+            const endpoint = isSignup
+                ? 'http://localhost:5000/api/auth/signup'
+                : 'http://localhost:5000/api/auth/login';
+            
+            // Include selected language in the request
+            const requestData = {
+                ...formData,
+                language: localStorage.getItem('selectedLanguage') || 'en'
+            };
+            
+            const { data } = await axios.post(endpoint, requestData);
+            
+            if (!data.token) throw new Error('Authentication failed');
+            
+            localStorage.setItem('token', data.token);
+            setUser(data.user);
+        } catch (err) {
+            const errorMessage = err.response?.data?.message ||
+                        err.message ||
+                        (isSignup ? 'Registration failed' : 'Login failed');
+            setError(errorMessage);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={formData.password}
-          onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))}
-          aria-label="Password"
-          required
-        />
-
-        <button 
-          type="submit" 
-          disabled={isLoading}
-          className={isLoading ? 'loading' : ''}
-        >
-          {isLoading ? 'Processing...' : (isSignup ? 'Sign Up' : 'Login')}
-        </button>
-      </form>
-
-      {error && (
-        <div className="error-message">
-          ⚠️ {error}
+    return (
+        <div className="auth-container">
+            <h2>{isSignup ? t('createAccount') : t('welcome')}</h2>
+            <form onSubmit={handleSubmit}>
+                {isSignup && (
+                    <input
+                        type="text"
+                        placeholder={t('username')}
+                        value={formData.username}
+                        onChange={e => setFormData(prev => ({ ...prev, username: e.target.value }))}
+                        aria-label={t('username')}
+                    />
+                )}
+                <input
+                    type="email"
+                    placeholder={t('email')}
+                    value={formData.email}
+                    onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                    aria-label={t('email')}
+                    required
+                />
+                <input
+                    type="password"
+                    placeholder={t('password')}
+                    value={formData.password}
+                    onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                    aria-label={t('password')}
+                    required
+                />
+                <button
+                    type="submit"
+                    disabled={isLoading}
+                    className={isLoading ? 'loading' : ''}
+                >
+                    {isLoading ? 'Processing...' : (isSignup ? t('signup') : t('login'))}
+                </button>
+            </form>
+            {error && (
+                <div className="error-message">
+                    ⚠️ {error}
+                </div>
+            )}
+            <p className="auth-toggle">
+                {isSignup ? t('alreadyAccount') : t('noAccount')}
+                <button
+                    type="button"
+                    className="auth-switch"
+                    onClick={() => setIsSignup(!isSignup)}
+                >
+                    {isSignup ? t('login') : t('signup')}
+                </button>
+            </p>
         </div>
-      )}
-
-      <p className="auth-toggle">
-        {isSignup ? 'Already have an account?' : "Don't have an account?"}
-        <button 
-          type="button"
-          className="auth-switch"
-          onClick={() => setIsSignup(!isSignup)}
-        >
-          {isSignup ? 'Login' : 'Sign Up'}
-        </button>
-      </p>
-    </div>
-  );
+    );
 };
 
 export default Auth;

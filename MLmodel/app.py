@@ -184,7 +184,13 @@ class EmotionContextClassifier:
         emotions = self.classify_emotion(text)
         text_lower = text.lower()
         context_scores = {}
-        
+        # Enhanced academic keyword detection
+        exam_keywords = ['ಪರೀಕ್ಷೆ', 'exam', 'test', 'ಅಂತಿಮ', 'final', 'ಕಲನಶಾಸ್ತ್ರ', 'calculus', 'ರಸಾಯನಶಾಸ್ತ್ರ', 'chemistry']
+        schedule_keywords = ['ಸೋಮವಾರ', 'monday', 'ಬುಧವಾರ', 'wednesday', 'ಶುಕ್ರವಾರ', 'friday', 'ಗುರುವಾರ', 'thursday']
+    
+    # If exam + schedule keywords, it's academic pressure, not social anxiety
+        if any(word in text_lower for word in exam_keywords) and any(word in text_lower for word in schedule_keywords):
+            context_scores['academic_pressure'] = context_scores.get('academic_pressure', 0) + 0.8
         # First, check for positive context using the new method
         positive_context = self.detect_positive_context(text, emotions)
         if positive_context:
@@ -348,7 +354,8 @@ except Exception as e:
     print(f"Failed to initialize emotion classifier: {e}")
     emotion_classifier = None
 
-# Enhanced route with better error handling
+# Update your enhanced_adaptive_generate route in app.py:
+
 @app.route('/enhanced_adaptive_generate', methods=['POST'])
 def enhanced_adaptive_generate():
     """Generate adaptive response with transformer-based emotion detection"""
@@ -357,6 +364,7 @@ def enhanced_adaptive_generate():
         query = data.get("user_query", "")
         base_mbti = data.get("user_personality", "")
         chat_history = data.get("chat_history", [])
+        user_language = data.get("user_language", "en")  # Add this line
         
         if not emotion_classifier:
             return jsonify({
@@ -379,8 +387,22 @@ def enhanced_adaptive_generate():
         # Create enhanced prompt with emotion data
         emotions_str = ", ".join([f"{emotion} ({prob:.2f})" for emotion, prob in context_data['detected_emotions']])
         
+        # Language-specific prompt
+        if user_language == 'kn':
+            language_instruction = """
+IMPORTANT: Respond in Kannada language only. Use Kannada script (ಕನ್ನಡ) for your entire response.
+Examples of Kannada responses:
+- ಹಾಯ್! ನೀವು ಹೇಗಿದ್ದೀರಿ?
+- ನಿಮ್ಮ ಸಮಸ್ಯೆಯನ್ನು ನಾನು ಅರ್ಥಮಾಡಿಕೊಂಡಿದ್ದೇನೆ.
+- ಇದು ಸಹಾಯಕವಾಗಿದೆಯೇ?
+"""
+        else:
+            language_instruction = "Respond in English."
+        
         prompt = f"""
 You are an AI companion with adaptive personality responding to a university student.
+
+{language_instruction}
 
 EMOTION ANALYSIS:
 - Detected Emotions: {emotions_str}
@@ -412,6 +434,7 @@ RESPONSE GUIDELINES:
 - Focus on 1-2 key points maximum
 - Ask engaging follow-up questions
 - Use natural, friendly tone
+- RESPOND IN THE USER'S LANGUAGE ({user_language})
 
 Generate a response that demonstrates this emotion-aware personality adaptation.
 """
@@ -430,14 +453,16 @@ Generate a response that demonstrates this emotion-aware personality adaptation.
                 "primary_context": context_data['primary_context'],
                 "confidence": context_data['confidence'],
                 "academic_context": context_data.get('academic_boost', False)
-            }
+            },
+            "language": user_language  # Add this
         })
         
     except Exception as e:
         print(f"Enhanced adaptive generation error: {e}")
+        error_message = "I'm here to support you. Please try again." if user_language == 'en' else "ನಾನು ನಿಮಗೆ ಸಹಾಯ ಮಾಡಲು ಇಲ್ಲಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ."
         return jsonify({
             "error": f"Enhanced adaptive response generation failed: {str(e)}",
-            "response": "I'm here to support you. Please try again."
+            "response": error_message
         }), 500
 
 # Add the enhanced route for emotion analysis
