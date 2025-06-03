@@ -9,7 +9,7 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci
 
-# Copy source code
+# Copy all source code (including .env as you requested)
 COPY . .
 
 # Production stage
@@ -17,12 +17,9 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy built files from builder
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app .
 
-# Expose port
 EXPOSE 5000
 
-# Start the server
-CMD ["node", "server.js"] 
+CMD ["node", "server.js"]

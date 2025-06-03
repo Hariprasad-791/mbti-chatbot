@@ -1,9 +1,10 @@
 node_modules
 npm-debug.log
 Dockerfile
-.dockerignore
+docker-compose.yml
 .git
 .gitignore
-README.md
-.env
-*.log 
+*.md
+*.log
+client
+# DO NOT ignore .env (so it gets copied into the image)
