@@ -624,6 +624,7 @@ def predict():
             }), 400
         
         # Predict personality using mBERT
+        print(text)
         result = predict_personality_mbert(text)
         
         if result is None:

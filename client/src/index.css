@@ -16,6 +16,34 @@
   --border-radius-small: 10px;
   --transition: all 0.3s ease;
 }
+/* Theme variables */
+:root {
+  --background-light: #f8f9fa;
+  --background-dark: #1e1e1e;
+  --text-light: #2d3436;
+  --text-dark: #f1f1f1;
+}
+
+/* Light theme */
+body.light-theme {
+  background-color: var(--background-light);
+  color: var(--text-light);
+}
+
+/* Dark theme */
+body.dark-theme {
+  background-color: var(--background-dark);
+  color: var(--text-dark);
+}
+
+/* Apply to container if needed */
+.chat-container.light-theme {
+  background: white;
+}
+
+.chat-container.dark-theme {
+  background: #2a2a2a;
+}
 
 /* Global Styles */
 * {
