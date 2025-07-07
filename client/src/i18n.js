@@ -28,13 +28,101 @@ const resources = {
       "startConversation": "Let's start our conversation - what's on your mind today?",
       
       // MCQ Questions
-      "freeTimeQuestion": "How do you prefer to spend your free time?",
-      "freeTimeOptions": {
-        "social": "Attending social events or meeting new people",
-        "alone": "Spending time alone or with a close friend",
-        "nature": "Exploring nature or observing your surroundings",
-        "reflect": "Reflecting on abstract ideas or journaling"
-      },
+ "freeTimeQuestion": "How do you prefer to spend your free time?",
+  "freeTimeOptions": {
+    "social": "Attending social events or meeting new people",
+    "alone": "Spending time alone or with a close friend",
+    "nature": "Exploring nature or observing your surroundings",
+    "reflect": "Reflecting on abstract ideas or journaling"
+  },
+
+  "conversationQuestion": "In conversations, you usually:",
+  "conversationOptions": {
+    "ideas": "Talk about ideas and possibilities",
+    "facts": "Focus on concrete facts and details",
+    "experiences": "Share personal experiences and feelings",
+    "solutions": "Discuss practical solutions"
+  },
+
+  "problemSolvingQuestion": "When solving problems, you tend to:",
+  "problemSolvingOptions": {
+    "creative": "Think of many creative solutions",
+    "systematic": "Follow a structured, step-by-step method",
+    "people": "Consider how it affects people",
+    "logical": "Analyze data and logical patterns"
+  },
+
+  "recallQuestion": "You most easily recall:",
+  "recallOptions": {
+    "concepts": "Overall concepts and the big picture",
+    "details": "Specific details and factual information",
+    "feelings": "How things made you feel",
+    "structure": "Structured logical frameworks"
+  },
+
+  "decisionQuestion": "You make decisions by:",
+  "decisionOptions": {
+    "gut": "Following your gut instinct and values",
+    "pros": "Weighing pros and cons objectively",
+    "relationships": "Considering impact on relationships",
+    "analysis": "Using logical analysis and data"
+  },
+
+  "groupWorkQuestion": "In group work, you are often the one who:",
+  "groupWorkOptions": {
+    "motivator": "Generates ideas and motivates others",
+    "organizer": "Organizes and ensures completion",
+    "mediator": "Supports and resolves conflict",
+    "analyzer": "Leads and makes decisions"
+  },
+
+  "planningQuestion": "Your day is usually planned by:",
+  "planningOptions": {
+    "flexible": "Keeping it open to spontaneous activities",
+    "structured": "Following a fixed schedule with clear time slots",
+    "balanced": "Balancing scheduled tasks and free time",
+    "priority": "Focusing on priority tasks without strict timing"
+  },
+
+  "workEnvironmentQuestion": "Your ideal work environment is:",
+  "workEnvironmentOptions": {
+    "dynamic": "Fast-paced and full of new challenges",
+    "organized": "Structured with clear procedures and deadlines",
+    "collaborative": "Collaborative with supportive teammates",
+    "independent": "Independent with minimal interruptions"
+  },
+
+  "changeQuestion": "When plans change unexpectedly, you:",
+  "changeOptions": {
+    "adapt": "Adapt quickly and see it as an opportunity",
+    "stressed": "Feel stressed and prefer to stick to original plans",
+    "flow": "Go with the flow as long as no one is hurt",
+    "evaluate": "Evaluate if the change makes logical sense"
+  },
+
+  "discussionQuestion": "In discussions, you tend to:",
+  "discussionOptions": {
+    "explore": "Enjoy exploring different viewpoints",
+    "facts": "Prioritize facts before contributing",
+    "common": "Focus on finding common ground",
+    "arguments": "Enjoy logical arguments and presenting evidence"
+  },
+
+  "productiveQuestion": "You are most productive when you:",
+  "productiveOptions": {
+    "bursts": "Work in short, intense bursts",
+    "routine": "Follow a consistent routine",
+    "collaborate": "Collaborate with others",
+    "uninterrupted": "Have uninterrupted thinking time"
+  },
+
+  "friendsQuestion": "Your friends would describe you as:",
+  "friendsOptions": {
+    "enthusiastic": "Enthusiastic and full of ideas",
+    "reliable": "Reliable and detail-oriented",
+    "caring": "Caring and understanding",
+    "logical": "Logical and efficient"
+  },
       
       // Language selector
       "selectLanguage": "Select Your Language",

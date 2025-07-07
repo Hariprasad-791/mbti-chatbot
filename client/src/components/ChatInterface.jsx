@@ -5,6 +5,37 @@ import axios from 'axios';
 import TextareaAutosize from 'react-textarea-autosize';
 import { useTranslation } from 'react-i18next';
 const BOT_AVATAR = '/bot-avatar.png';
+// Add this after your imports and before the ChatInterface component
+const shouldAnalyzeEmotion = (message) => {
+    const basicQueries = [
+        'what', 'how', 'when', 'where', 'who', 'why',
+        'explain', 'tell me', 'show me', 'help',
+        'thanks', 'thank you', 'ok', 'okay', 'yes', 'no'
+    ];
+    
+    const emotionalKeywords = [
+        'feel', 'feeling', 'sad', 'happy', 'angry', 'frustrated',
+        'stressed', 'worried', 'excited', 'nervous', 'anxious',
+        'depressed', 'overwhelmed', 'confused', 'hurt', 'disappointed'
+    ];
+    
+    const messageLower = message.toLowerCase();
+    
+    // Skip emotion detection for very short messages
+    if (message.length < 10) return false;
+    
+    // Skip if it's clearly a basic informational query
+    const isBasicQuery = basicQueries.some(keyword => 
+        messageLower.startsWith(keyword) || messageLower.includes(`${keyword} `)
+    );
+    
+    // Force emotion detection if emotional keywords are present
+    const hasEmotionalContent = emotionalKeywords.some(keyword => 
+        messageLower.includes(keyword)
+    );
+    
+    return hasEmotionalContent || !isBasicQuery;
+};
 
 const EnhancedContextDetector = {
     detectContext: async (message) => {
@@ -52,8 +83,32 @@ const ChatInterface = ({ user }) => {
     const [previousContext, setPreviousContext] = useState('normal');
     const [currentContext, setCurrentContext] = useState('normal');
     const [isLoading, setIsLoading] = useState(false);
-
+    const [emotionContext, setEmotionContext] = useState({
+    current: 'normal',
+    confidence: 0.0,
+    lastAnalyzed: 0,
+    persistenceCount: 0
+});
+     const [recentMessages, setRecentMessages] = useState([]);
     const chatEndRef = useRef(null);
+
+    const analyzeRecentMessages = async (currentMessage) => {
+        try {
+            // Combine current message with last 2 messages for context
+            const messagesToAnalyze = [...recentMessages.slice(-2), currentMessage];
+            const combinedText = messagesToAnalyze.join(' ');
+            
+            console.log('Analyzing combined messages:', combinedText);
+            
+            const contextData = await EnhancedContextDetector.detectContext(combinedText);
+            return contextData;
+        } catch (error) {
+            console.error('Batch emotion analysis failed:', error);
+            // Fallback to single message analysis
+            return await EnhancedContextDetector.detectContext(currentMessage);
+        }
+    };
+
 
     // Complete translated MCQ questions using useMemo
     const initialQuestions = useMemo(() => [
@@ -190,21 +245,71 @@ const ChatInterface = ({ user }) => {
         fetchUserMbti();
     }, []);
 
-const handleSend = async () => {
+    const handleSend = async () => {
     if (!message.trim() || isLoading) return;
     
     setIsLoading(true);
     const userMessage = message.trim();
     setMessage('');
     
-    // Move this OUTSIDE the try block
     const selectedLanguage = localStorage.getItem('selectedLanguage') || 'en';
     
     try {
         setPreviousContext(currentContext);
         
-        const contextData = await EnhancedContextDetector.detectContext(userMessage);
-        setCurrentContext(contextData.primary_context);
+        // Add message to recent messages for context
+        setRecentMessages(prev => [...prev.slice(-4), userMessage]);
+        
+        let contextData;
+        
+        // Enhanced conditions for emotion analysis
+        const shouldAnalyze = 
+            messageCount === 0 || // First message
+            messageCount - emotionContext.lastAnalyzed >= 5 || // Every 5 messages
+            shouldAnalyzeEmotion(userMessage) || // Emotional content detected
+            emotionContext.confidence < 0.3; // Low confidence context
+        
+        if (shouldAnalyze) {
+            console.log('🔍 Performing emotion analysis...');
+            
+            // Use batch analysis for better context
+            contextData = await analyzeRecentMessages(userMessage);
+            
+            setEmotionContext({
+                current: contextData.primary_context,
+                confidence: contextData.confidence,
+                lastAnalyzed: messageCount,
+                persistenceCount: 0
+            });
+            
+            setCurrentContext(contextData.primary_context);
+            
+            console.log('✅ Emotion detected:', contextData.primary_context, 
+                       'Confidence:', contextData.confidence);
+        } else {
+            console.log('📋 Using persisted emotion context...');
+            
+            // Use persisted context with gradually decreasing confidence
+            const decayFactor = Math.max(0.1, 1 - (emotionContext.persistenceCount * 0.1));
+            
+            contextData = {
+                primary_context: emotionContext.current,
+                confidence: emotionContext.confidence * decayFactor,
+                detected_emotions: [['neutral', 0.5]],
+                all_contexts: {},
+                persisted: true,
+                decay_factor: decayFactor
+            };
+            
+            setEmotionContext(prev => ({
+                ...prev,
+                persistenceCount: prev.persistenceCount + 1,
+                confidence: prev.confidence * decayFactor
+            }));
+            
+            console.log('📉 Persisted context:', emotionContext.current, 
+                       'Decayed confidence:', contextData.confidence);
+        }
         
         const userEntry = {
             isUser: true,
@@ -216,8 +321,6 @@ const handleSend = async () => {
         setMessageCount(prev => prev + 1);
 
         const token = localStorage.getItem('token');
-        
-        // selectedLanguage is now accessible here
         
         // Store user message
         await axios.post(
@@ -255,7 +358,8 @@ const handleSend = async () => {
             message: botMessage,
             timestamp: new Date().toISOString(),
             adaptationInfo: adaptationInfo,
-            emotionAnalysis: emotionAnalysis
+            emotionAnalysis: emotionAnalysis,
+            contextUsed: contextData.persisted ? 'persisted' : 'analyzed'
         };
 
         // Store bot response
@@ -270,7 +374,8 @@ const handleSend = async () => {
         // Only show adaptation messages for significant changes
         if (contextData.primary_context !== 'normal' && 
             contextData.confidence > 0.6 && 
-            contextData.primary_context !== previousContext) {
+            contextData.primary_context !== previousContext &&
+            !contextData.persisted) {
             
             const getKannadaContext = (context) => {
                 const contextMap = {
@@ -300,7 +405,6 @@ const handleSend = async () => {
     } catch (err) {
         console.error('Enhanced generation failed:', err);
         
-        // selectedLanguage is now accessible in catch block too
         const errorMessage = selectedLanguage === 'kn' 
             ? '⚠️ ನಾನು ಈಗ ಉತ್ತರ ನೀಡಲು ಕಷ್ಟಪಡುತ್ತಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.'
             : '⚠️ I\'m having trouble generating a thoughtful response right now. Please try again.';
@@ -317,7 +421,6 @@ const handleSend = async () => {
         setIsLoading(false);
     }
 };
-
 
 
     const handleInputKeyDown = (e) => {
@@ -373,7 +476,6 @@ const handleSend = async () => {
             ]);
         }
     };
-
     // Enhanced MCQ Phase with proper styling
     if (!isMcqCompleted) {
         return (
